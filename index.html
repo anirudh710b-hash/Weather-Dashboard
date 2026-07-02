@@ -25,11 +25,14 @@
   </div>
 
   <form class="search" id="search-form" role="search" autocomplete="off">
+    <button type="button" id="locate-btn" title="Use my current location" aria-label="Use my current location">
+      <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>
+    </button>
     <input
       type="text"
       id="city-input"
       name="city"
-      placeholder="Read a city — Nairobi, Osaka, Lima…"
+      placeholder="Or search a city — Nairobi, Osaka, Lima…"
       aria-label="Search city for weather"
       required
     >
@@ -54,13 +57,13 @@
         <line x1="180" y1="100" x2="166" y2="100" stroke="var(--line)" stroke-width="1"/>
       </svg>
     </div>
-    <p class="idle-copy">No reading yet. Enter a city above and press <em>Take Reading</em> to calibrate the instrument.</p>
+    <p class="idle-copy" id="idle-message">Locating you… or enter a city above and press <em>Take Reading</em>.</p>
   </section>
 
   <!-- Loading state -->
   <section class="state-panel is-hidden" id="state-loading" aria-live="polite">
     <div class="needle-spinner" aria-hidden="true"></div>
-    <p class="idle-copy">Calibrating instrument…</p>
+    <p class="idle-copy" id="loading-message">Calibrating instrument…</p>
   </section>
 
   <!-- Error state -->
