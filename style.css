@@ -101,6 +101,26 @@ svg { display: block; }
   width: min(420px, 100%);
 }
 
+#locate-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 42px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  color: var(--cyan);
+  border-radius: 3px;
+  transition: border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+#locate-btn:hover { border-color: var(--cyan); color: var(--paper); }
+#locate-btn:active { transform: scale(0.94); }
+#locate-btn.is-locating svg { animation: spin 0.9s linear infinite; }
+#locate-btn:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
 #city-input {
   flex: 1;
   background: var(--panel);
@@ -148,7 +168,9 @@ svg { display: block; }
 
 .btn-label { display: inline; }
 
-
+/* ============================================================
+   Main / states
+   ============================================================ */
 main {
   padding: clamp(1.5rem, 5vw, 3.5rem);
   min-height: 60vh;
@@ -217,7 +239,9 @@ main {
 }
 .retry-btn:hover { border-color: var(--rust); color: var(--rust); }
 
-
+/* ============================================================
+   Dashboard layout
+   ============================================================ */
 .dashboard { width: 100%; max-width: 1080px; }
 
 .readout-grid {
@@ -254,6 +278,7 @@ main {
   margin: 0 0 1.2rem;
 }
 
+/* Primary card */
 .card-primary { grid-area: primary; }
 
 .card-label-row {
@@ -321,7 +346,7 @@ main {
   margin: 0;
 }
 
-
+/* Metrics card */
 .card-metrics { grid-area: metrics; }
 
 .metrics-list {
@@ -401,6 +426,7 @@ main {
   color: var(--paper-dim);
 }
 
+/* Forecast card */
 .card-forecast { grid-area: forecast; }
 
 .forecast-list {
@@ -452,6 +478,9 @@ main {
   letter-spacing: 0.02em;
 }
 
+/* ============================================================
+   Responsive
+   ============================================================ */
 @media (max-width: 760px) {
   .readout-grid {
     grid-template-columns: 1fr;
@@ -467,7 +496,7 @@ main {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .brand-mark, .needle-spinner, .idle-dial svg circle:first-child {
+  .brand-mark, .needle-spinner, .idle-dial svg circle:first-child, #locate-btn.is-locating svg {
     animation: none !important;
   }
   .metric-bar span, .compass-icon {
