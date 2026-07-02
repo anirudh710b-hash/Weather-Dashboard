@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Station — Live Weather Readout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="grain"></div>
+
+<header class="panel-header">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+    </span>
+    <div class="brand-text">
+      <p class="eyebrow">No. 01 — Live Instrument</p>
+      <h1>Station</h1>
+    </div>
+  </div>
+
+  <form class="search" id="search-form" role="search" autocomplete="off">
+    <input
+      type="text"
+      id="city-input"
+      name="city"
+      placeholder="Read a city — Nairobi, Osaka, Lima…"
+      aria-label="Search city for weather"
+      required
+    >
+    <button type="submit" id="search-btn">
+      <span class="btn-label">Take Reading</span>
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </form>
+</header>
+
+<main id="main">
+
+  <!-- Idle state -->
+  <section class="state-panel" id="state-idle">
+    <div class="idle-dial" aria-hidden="true">
+      <svg viewBox="0 0 200 200" width="140" height="140">
+        <circle cx="100" cy="100" r="92" fill="none" stroke="var(--line)" stroke-width="1"/>
+        <circle cx="100" cy="100" r="70" fill="none" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 6"/>
+        <line x1="100" y1="20" x2="100" y2="34" stroke="var(--brass)" stroke-width="2"/>
+        <line x1="100" y1="180" x2="100" y2="166" stroke="var(--line)" stroke-width="1"/>
+        <line x1="20" y1="100" x2="34" y2="100" stroke="var(--line)" stroke-width="1"/>
+        <line x1="180" y1="100" x2="166" y2="100" stroke="var(--line)" stroke-width="1"/>
+      </svg>
+    </div>
+    <p class="idle-copy">No reading yet. Enter a city above and press <em>Take Reading</em> to calibrate the instrument.</p>
+  </section>
+
+  <!-- Loading state -->
+  <section class="state-panel is-hidden" id="state-loading" aria-live="polite">
+    <div class="needle-spinner" aria-hidden="true"></div>
+    <p class="idle-copy">Calibrating instrument…</p>
+  </section>
+
+  <!-- Error state -->
+  <section class="state-panel is-hidden" id="state-error" role="alert">
+    <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true"><path d="M12 3l10 18H2L12 3z" fill="none" stroke="var(--rust)" stroke-width="1.6" stroke-linejoin="round"/><line x1="12" y1="10" x2="12" y2="14.5" stroke="var(--rust)" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="17.3" r="1" fill="var(--rust)"/></svg>
+    <p class="error-title" id="error-title">Reading failed</p>
+    <p class="error-copy" id="error-message">Something interrupted the signal.</p>
+    <button class="retry-btn" id="retry-btn">Try again</button>
+  </section>
+
+  <!-- Result state -->
+  <section class="dashboard is-hidden" id="state-result">
+
+    <div class="readout-grid">
+
+      <!-- Primary reading -->
+      <article class="card card-primary">
+        <div class="card-label-row">
+          <p class="eyebrow" id="location-name">—</p>
+          <p class="coords" id="location-coords">—</p>
+        </div>
+
+        <div class="primary-figure">
+          <span class="condition-icon" id="condition-icon" aria-hidden="true"></span>
+          <div class="temp-block">
+            <span class="temp-value" id="temp-value">—</span>
+            <span class="temp-unit">°C</span>
+          </div>
+        </div>
+
+        <p class="condition-desc" id="condition-desc">—</p>
+        <p class="feels-like">Feels like <span id="feels-like-value">—</span>°C · <span id="local-time">—</span></p>
+      </article>
+
+      <!-- Metrics -->
+      <article class="card card-metrics">
+        <p class="card-title">Instrument Panel</p>
+        <ul class="metrics-list">
+          <li class="metric">
+            <div class="metric-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 3v10.55a4 4 0 1 1-2 0V3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="metric-text">
+              <span class="metric-label">Humidity</span>
+              <span class="metric-value"><span id="humidity-value">—</span>%</span>
+            </div>
+            <div class="metric-bar"><span id="humidity-bar" style="width:0%"></span></div>
+          </li>
+          <li class="metric">
+            <div class="metric-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 12h13a3 3 0 1 0-3-3M3 17h9a3 3 0 1 1-3 3M3 7h6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </div>
+            <div class="metric-text">
+              <span class="metric-label">Wind speed</span>
+              <span class="metric-value"><span id="wind-value">—</span> km/h</span>
+            </div>
+            <div class="metric-bar"><span id="wind-bar" style="width:0%"></span></div>
+          </li>
+          <li class="metric">
+            <div class="metric-icon compass-icon" aria-hidden="true" id="wind-compass">
+              <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 2v20M12 2l-3 6h6l-3-6z" fill="currentColor" stroke="none"/></svg>
+            </div>
+            <div class="metric-text">
+              <span class="metric-label">Wind direction</span>
+              <span class="metric-value"><span id="wind-dir-value">—</span></span>
+            </div>
+          </li>
+          <li class="metric">
+            <div class="metric-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </div>
+            <div class="metric-text">
+              <span class="metric-label">Pressure</span>
+              <span class="metric-value"><span id="pressure-value">—</span> hPa</span>
+            </div>
+          </li>
+        </ul>
+      </article>
+
+      <!-- Hourly trend -->
+      <article class="card card-trend">
+        <p class="card-title">Next 12 Hours</p>
+        <svg id="trend-chart" viewBox="0 0 320 110" preserveAspectRatio="none" class="trend-svg"></svg>
+        <div class="trend-labels" id="trend-labels"></div>
+      </article>
+
+      <!-- Daily forecast -->
+      <article class="card card-forecast">
+        <p class="card-title">Seven Day Log</p>
+        <ul class="forecast-list" id="forecast-list"></ul>
+      </article>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="panel-footer">
+  <p>Data source: Open-Meteo — updated on each reading. No key, no cache, just signal.</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
