@@ -1,16 +1,21 @@
 const GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search";
+const REVERSE_GEOCODE_URL = "https://api.bigdatacloud.net/data/reverse-geocode-client";
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
 
+// ---- DOM references -------------------------------------------------
 const els = {
   form: document.getElementById("search-form"),
   input: document.getElementById("city-input"),
   searchBtn: document.getElementById("search-btn"),
+  locateBtn: document.getElementById("locate-btn"),
   retryBtn: document.getElementById("retry-btn"),
 
   stateIdle: document.getElementById("state-idle"),
   stateLoading: document.getElementById("state-loading"),
   stateError: document.getElementById("state-error"),
   stateResult: document.getElementById("state-result"),
+  idleMessage: document.getElementById("idle-message"),
+  loadingMessage: document.getElementById("loading-message"),
 
   errorTitle: document.getElementById("error-title"),
   errorMessage: document.getElementById("error-message"),
@@ -36,9 +41,11 @@ const els = {
   forecastList: document.getElementById("forecast-list"),
 };
 
-let lastQuery = "";
+let lastAction = { type: "geo" };
 
-
+// ---- WMO weather code lookup -----------------------------------------
+// Open-Meteo returns a numeric "weather_code" per the WMO table.
+// We map ranges/codes to a human description and a small icon renderer.
 const WEATHER_CODES = {
   0: { desc: "Clear sky", icon: "sun" },
   1: { desc: "Mostly clear", icon: "sun-cloud" },
@@ -89,6 +96,7 @@ function iconMarkup(name) {
   return ICONS[name] || ICONS.cloud;
 }
 
+// ---- Compass helper ----------------------------------------------------
 const COMPASS_POINTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
 
 function degreesToCompass(deg) {
@@ -125,6 +133,7 @@ class WeatherError extends Error {
   }
 }
 
+// ---- Async fetch: geocode a city name to coordinates --------------------
 async function geocodeCity(cityName) {
   const url = `${GEOCODE_URL}?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`;
 
@@ -168,6 +177,52 @@ async function geocodeCity(cityName) {
   };
 }
 
+// ---- Browser geolocation: ask the device for live coordinates -----------
+function getCurrentCoords() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new WeatherError("Your browser doesn't support live location. Search for a city instead.", "geo"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+      },
+      (geoErr) => {
+        let message = "Couldn't get your location. Search for a city instead.";
+        if (geoErr.code === geoErr.PERMISSION_DENIED) {
+          message = "Location access was denied. Search for a city instead.";
+        } else if (geoErr.code === geoErr.POSITION_UNAVAILABLE) {
+          message = "Your location is unavailable right now. Search for a city instead.";
+        } else if (geoErr.code === geoErr.TIMEOUT) {
+          message = "Location request timed out. Search for a city instead.";
+        }
+        reject(new WeatherError(message, "geo"));
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+    );
+  });
+}
+
+// ---- Async fetch: turn coordinates back into a place name ----------------
+// Uses BigDataCloud's free client-side reverse geocoding endpoint (no key, CORS-enabled).
+async function reverseGeocode(latitude, longitude) {
+  const url = `${REVERSE_GEOCODE_URL}?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const name = data.city || data.locality || data.principalSubdivision || "Your location";
+    const admin1 = data.principalSubdivision;
+    const country = data.countryName;
+    return { name, admin1: admin1 && admin1 !== name ? admin1 : "", country };
+  } catch (err) {
+    return null; // Reverse geocoding is a nicety — fall back to plain coordinates if it fails.
+  }
+}
+
+// ---- Async fetch: pull current + hourly + daily weather ------------------
 async function fetchWeather(latitude, longitude, timezone) {
   const params = new URLSearchParams({
     latitude,
@@ -219,6 +274,8 @@ async function fetchWeather(latitude, longitude, timezone) {
 
 // ---- Orchestrator: geocode then fetch weather, then render ---------------
 async function loadWeatherForCity(cityName) {
+  lastAction = { type: "city", value: cityName };
+  els.loadingMessage.textContent = "Calibrating instrument…";
   showState("loading");
   setLoading(true);
 
@@ -235,6 +292,53 @@ async function loadWeatherForCity(cityName) {
   }
 }
 
+// ---- Orchestrator: take a live reading from the device's own coordinates -
+async function loadWeatherForCurrentLocation({ silent } = {}) {
+  lastAction = { type: "geo" };
+
+  if (!silent) {
+    els.loadingMessage.textContent = "Finding your location…";
+    showState("loading");
+  }
+  setLoading(true);
+  if (els.locateBtn) els.locateBtn.classList.add("is-locating");
+
+  try {
+    const coords = await getCurrentCoords();
+    els.loadingMessage.textContent = "Calibrating instrument…";
+    if (silent) showState("loading");
+
+    const [place, weather] = await Promise.all([
+      reverseGeocode(coords.latitude, coords.longitude),
+      fetchWeather(coords.latitude, coords.longitude, "auto"),
+    ]);
+
+    const resolvedPlace = {
+      name: (place && place.name) || "Your location",
+      admin1: place ? place.admin1 : "",
+      country: place ? place.country : "",
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+    };
+
+    renderDashboard(resolvedPlace, weather);
+    showState("result");
+  } catch (err) {
+    // On a silent (page-load) attempt, a failure just quietly falls back to idle —
+    // no need to alarm the user before they've even asked for anything.
+    if (silent) {
+      els.idleMessage.textContent = "Enter a city above, or tap the target icon to use your location.";
+      showState("idle");
+    } else {
+      renderError(err);
+      showState("error");
+    }
+  } finally {
+    setLoading(false);
+    if (els.locateBtn) els.locateBtn.classList.remove("is-locating");
+  }
+}
+
 function renderError(err) {
   const isWeatherError = err instanceof WeatherError;
   const titleMap = {
@@ -242,6 +346,7 @@ function renderError(err) {
     network: "Connection lost",
     http: "Service unavailable",
     parse: "Unreadable signal",
+    geo: "Location unavailable",
   };
 
   els.errorTitle.textContent = isWeatherError ? titleMap[err.kind] || "Reading failed" : "Reading failed";
@@ -374,13 +479,25 @@ els.form.addEventListener("submit", (e) => {
   e.preventDefault();
   const value = els.input.value.trim();
   if (!value) return;
-  lastQuery = value;
   loadWeatherForCity(value);
 });
 
+if (els.locateBtn) {
+  els.locateBtn.addEventListener("click", () => {
+    loadWeatherForCurrentLocation();
+  });
+}
+
 els.retryBtn.addEventListener("click", () => {
-  if (lastQuery) loadWeatherForCity(lastQuery);
+  if (lastAction.type === "geo") {
+    loadWeatherForCurrentLocation();
+  } else if (lastAction.value) {
+    loadWeatherForCity(lastAction.value);
+  }
 });
 
-// Start in idle state
-showState("idle");
+// Start by quietly trying to take a live reading from the device's location.
+// If permission is denied or unavailable, it falls back to the idle state
+// with the search box ready — no error shown for an attempt the user didn't make.
+loadWeatherForCurrentLocation({ silent: true });
+
