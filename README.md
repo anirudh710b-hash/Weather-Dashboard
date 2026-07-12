@@ -149,6 +149,8 @@ git commit -m "Add new feature"
 ```bash
 git push origin feature-name
 ```
+## Live Demo
+https://anirudh710b-hash.github.io/Weather-Dashboard/
 
 5. Open a Pull Request
 
